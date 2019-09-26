@@ -1,0 +1,237 @@
+---
+title: "Análise Multivariada | aula 4"
+#author:  
+#- "Jonatas Varella"
+#- "Artur Quirino"
+date: "`r Sys.Date()`"
+output: html_document
+header-includes:
+   - \usepackage[brazil]{babel}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = F,
+                      warning = F,
+                      fig.height = 4,
+                      fig.width = 6,
+                      fig.align = "center",
+                      fig.pos='H'#,
+                      #results = "asis"
+                      )
+```
+
+
+```{r}
+### Análise Multivariada
+### Programa de Pós graduação em Sociologia
+## Prof. Jorge Alexandre Neves
+## Monitoria: Jonatas Varella 
+#################################
+```
+
+
+```{r}
+#Caso o pacote haven não esteja instalado
+##install.packages("haven")
+
+## Carregando os pacotes
+library(haven)
+
+## Lendo o banco de dados
+pnad96 = read_sav("https://github.com/jonatasvarella/analisemultivariada/blob/master/PNAD96_25a60_PPGS_2019%20(1).sav?raw=true")
+```
+
+### Variáveis
+
+`lnrenda` = Logaritmo natural do Rendimento do trabalho principal
+
+`anosesco` = Anos de escolaridade do Morador
+
+`racabin` = Raça binária (Brancos e amarelos = 1; Negros = 0)
+
+`região` = Regiões do Brasil (Norte, Nordeste, Centro-Oeste, Sudeste, Sul)
+
+### Modelo I
+
+$$\texttt{lnrenda} = \beta_{0} + \beta_{1}\texttt{anosesco} + \beta_{2}\texttt{racabin}$$
+```{r}
+reg = lm(lnrenda ~ anosesco + `raçabin`, data = pnad96)
+summary(reg)
+coef(reg)
+
+#Renda para Negros
+exp(4.9770787)
+
+#Renda para Brancos e Amarelos
+exp(4.9770787 + reg$coefficients[3])
+
+#Diferença entre as curvas de negros e brancos independente de escolaridade. Ou impacto da raça.
+(198.9199 - 145.05)/145.05
+
+```
+
+#### Plotando as curvas de regressão para cada categoria de raça
+
+```{r}
+# Sem interação
+
+##Transformando a variável raçabin em "factor" para gerar o gráfico.
+pnad96$`raçabin` = as.factor(pnad96$`raçabin`)
+pnad96$`raçabin` = factor(pnad96$`raçabin`, levels = c("0", "1"),
+                       labels = c("Negros", "Brancos e Amarelos"))
+
+par(mfrow=c(1,1),mar = c(4,4,2,2))
+
+colors <- c("#00AFBB", "#00b33c")
+colors <- colors[as.numeric(pnad96$`raçabin`)]
+
+
+plot(pnad96$anosesco, pnad96$lnrenda, 
+     frame = FALSE,
+     xlab = "Anos de Escolaridade do Morador",
+     ylab = "Log. Natural do rendimento do trabalho principal",
+     col = colors)
+abline(coef(reg)[1],coef(reg)[2], lwd=2, col="#00AFBB")
+abline(coef(reg)[1]+coef(reg)[3],coef(reg)[2], lwd=2, col="#00b33c")
+legend( x = 9.7, y =2.7, inset=c(-0.2,0), # horiz = TRUE, 
+       legend = levels(pnad96$`raçabin`),
+       col =  c("#00AFBB", "#00b33c"),
+       #bg = "transparent",
+       bty = "n",
+       pch = 20)
+```
+
+
+
+### Modelo II | Utilizando termo interativo
+$$\texttt{lnrenda} = \beta_{0} + \beta_{1}\texttt{anosesco} + \beta_{2}\texttt{racabin} + \beta_{3}(\texttt{anosesco}\times \texttt{racabin})$$
+
+```{r}
+#Criando o termo interativo 
+
+pnad96$nova_variavel =  pnad96$anosesco * pnad96$raçabin
+```
+
+```{r}
+reg2 = lm(lnrenda ~ anosesco + `raçabin` + `raçaesco`, data = pnad96)
+summary(reg2)
+```
+
+```{r}
+#Gráfico com interação
+
+library(tidyverse)
+
+ggplot(data= pnad96)+
+  geom_point(aes(y = lnrenda, 
+                 x = anosesco, 
+                 colour= factor(raçabin)))+
+  geom_smooth(aes(y = lnrenda, 
+                  x = anosesco, 
+                  colour = factor(raçabin)),
+              method = "lm")+
+  theme_classic()+
+scale_color_manual(values = c("#d8b365", "#5ab4ac"), name = "Raça")+
+theme(legend.background = element_rect(colour = "black"))+
+  ggtitle("Renda por escolaridade, agrupado por raça")+
+  xlab("Anos de Escolaridade do Morador")+
+  ylab("Log. Natural do rendimento do trabalho principal")
+```
+
+### Modelo II com a variável isei88 como variável dependente
+
+```{r}
+#Sem o termo interativo
+
+reg3 = lm(isei88 ~ anosesco + `raçabin`, data = pnad96)
+summary(reg3)
+
+#Com o termo interativo
+reg4 = lm(isei88 ~ anosesco + `raçabin` + `raçaesco`, data = pnad96)
+summary(reg4)
+
+```
+
+```{r}
+#Gráfico
+library(tidyverse)
+
+ggplot(data= pnad96)+
+  geom_point(aes(y = isei88, 
+                 x = anosesco, 
+                 colour= factor(raçabin)))+
+  geom_smooth(aes(y = isei88, 
+                  x = anosesco, 
+                  colour = factor(raçabin)),
+              method = "lm")+
+  theme_classic()+
+scale_color_manual(values = c("#d8b365", "#5ab4ac"), name = "Raça")+
+theme(legend.background = element_rect(colour = "black"))+
+  ggtitle("ISEI por escolaridade, agrupado por raça")+
+  xlab("ISEI")+
+  ylab("Log. Natural do rendimento do trabalho principal")
+```
+
+```
+```{r, results="asis"}
+library(stargazer)
+stargazer(reg3,reg4,type = "html",
+          intercept.bottom = F,
+          covariate.labels = c("Intercept"),
+          column.labels = c("Sem termo Interativo", "Com termo interativo"))
+
+```
+
+```{r}
+reg5 = lm(isei88 ~ iseipai + `raçabin`, data = pnad96)
+summary(reg5)
+
+reg6 = lm(isei88 ~ iseipai + `raçabin` + (raçabin*iseipai), data = pnad96)
+summary(reg6)
+
+```
+
+```{r, results = "asis"}
+
+library(stargazer)
+stargazer(reg5,reg6,type = "html",
+          intercept.bottom = F,
+          covariate.labels = c("Intercept"),
+          column.labels = c("Sem termo Interativo", "Com termo interativo"))
+```
+
+### Modelo III | Adicionando a variável região
+
+```{r}
+##Analisando a variável regiao
+
+#Ela é categórica? Pois deveria ser.
+str(pnad96[33]) 
+
+#Quais são os valores únicos dela?
+unique(pnad96$`região`) 
+
+#E quais são os rótulos?
+attr(pnad96$`região`, "labels") 
+
+##Recodificando os rótulos.
+pnad96$`região` = as.factor(pnad96$`região`)
+pnad96$`região` = factor(pnad96$`região`, levels = c("1", "2", "3", "4", "5"),
+                       labels = c("Norte", "Nordeste", "Sudeste", "Sul", "Centro-Oeste"))
+
+# Definindo a categoria de referência
+pnad96$`região` <- relevel(pnad96$`região`, ref="Nordeste")
+```
+
+
+#### Montando o modelo de regressão
+
+$$\texttt{lnrenda} = \beta_{0} + \beta_{1}\texttt{anosesco} + \beta_{2}\texttt{regiao}$$
+```{r}
+
+reg3 = lm(lnrenda~anosesco + `região`, data=pnad96)
+summary(reg3)
+```
+
+
